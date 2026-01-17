@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  telegram-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegram-mcp-server
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    # If you need to expose ports for HTTP/SSE mode instead of stdio
+    # ports:
+    #   - "8000:8000"
+    volumes:
+      # Mount the source code for development (optional - remove for production)
+      - ./telegram_server.py:/app/telegram_server.py:ro
+      # Mount .env file to allow updates without rebuild
+      - ./.env:/app/.env:ro
+    # For stdio-based MCP, you'll typically interact via docker exec or logs
+    stdin_open: true
+    tty: true
+    # Health check (optional)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

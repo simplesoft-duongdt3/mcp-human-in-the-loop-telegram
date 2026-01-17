@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+README.md
+CHANGELOG.md
+KILO_USAGE_GUIDE.md
+*.md
+
+# Config files not needed in container
+mcp-config.json
+.kilocode/
+
+# Scripts
+run.sh
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore

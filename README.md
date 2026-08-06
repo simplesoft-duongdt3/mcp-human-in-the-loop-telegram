@@ -412,7 +412,7 @@ send_telegram_notification("🎉 Migration complete! All 1,247 records migrated 
 
 ### Timeout Behavior
 
-- Default timeout: **120 seconds** (2 minutes)
+- Default timeout: **180 seconds** (3 minutes) — the Kilo MCP client timeout must be ≥ this (see the task-0077 section below)
 - Configurable via the `timeout_seconds` parameter in `ask_human()`
 - If you don't respond in time, the AI receives: `"Timeout: User did not respond in time..."`
 
@@ -563,7 +563,7 @@ You can customize the timeout per question:
 ask_human("Proceed?", options=["Yes", "No"], timeout_seconds=30)
 
 # Longer timeout for thoughtful questions
-ask_human("Which approach?", timeout_seconds=300)  # 5 minutes
+ask_human("Which approach?", timeout_seconds=180)  # 3 minutes (max for blocking; use wait=False beyond that)
 ```
 
 ### Restricting to Specific User
@@ -663,3 +663,30 @@ For issues with:
 - Progress notification system
 - Docker support
 - Comprehensive documentation
+
+## Approval history & diagram images (task 0077)
+
+- **History:** every `ask_human` request and its resolution (button click,
+  typed text, or timeout) is appended to a durable JSONL audit log — default
+  `~/.config/kilo/telegram-hitl.log.jsonl`, overridable with the
+  `TELEGRAM_HITL_LOG_PATH` env var. Query it with the `get_telegram_history`
+  MCP tool (filter by `task_id`, one line per message, newest first). Unlike
+  Telegram's `getUpdates` (≈24h retention) the log persists forever.
+- **Resolved messages keep context:** the original question, task/phase,
+  decision and timestamp stay visible after resolution (buttons are removed);
+  typed replies and timeouts are marked resolved too.
+- **Diagrams/photos:** pass `photo_path` to `ask_human` to attach an image
+  (e.g. a rendered mermaid diagram — render with
+  `bash scripts/render-mermaid.sh <md> <outdir>` in the project repo). The
+  question becomes a photo message; resolutions edit the caption. Use
+  `send_telegram_photo(photo_path, caption)` for one-way images (e.g. e2e
+  screenshots). Photo messages have a 1024-char caption limit.
+- **Context params:** `ask_human(..., task_id="0077", phase="A",
+  metadata={...})` — `task_id`/`phase` appear in the message header and are
+  recorded in the log; `metadata` is log-only, never sent to Telegram.
+- **Timeouts:** default `timeout_seconds=180` (3 minutes) — the Kilo MCP
+  client timeout must be ≥ that value (`.kilo/kilo.jsonc` → `timeout: 180000`).
+  For longer deliberations use `wait=False` + `get_telegram_response()`.
+- **Markdown safety:** questions, decisions and captions are escaped before
+  sending/editing (`_ * ` [ ]`); on a Telegram parse error the edit is retried
+  without `parse_mode`. Keep question text free of unpaired specials.

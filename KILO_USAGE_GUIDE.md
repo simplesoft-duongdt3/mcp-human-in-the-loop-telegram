@@ -12,7 +12,7 @@ Sends a question to the user via Telegram.
 - `question` (required): The question text
 - `options` (optional): List of button choices (e.g., `["Yes", "No"]`)
 - `wait` (optional, default `True`): Whether to block waiting for response
-- `timeout_seconds` (optional, default `120`): How long to wait if `wait=True`
+- `timeout_seconds` (optional, default `180`): How long to wait if `wait=True` (3 minutes — matches the MCP client timeout; use `wait=False` + `get_telegram_response()` beyond that)
 
 **Returns:**
 - If `wait=True`: The user's answer or timeout message
@@ -153,7 +153,7 @@ answer = ask_human(
     "Should I proceed with this change?",
     options=["Yes", "No", "Let me review first"],
     wait=True,
-    timeout_seconds=120
+    timeout_seconds=180
 )
 
 if "timeout" in answer.lower():
@@ -226,11 +226,12 @@ ask_human(
 # Quick questions: 30-60 seconds
 ask_human("Proceed?", timeout_seconds=30)
 
-# Normal questions: 120 seconds (default)
-ask_human("Which approach?", timeout_seconds=120)
+# Normal questions: 180 seconds (default)
+ask_human("Which approach?")
 
-# Thoughtful questions: 300+ seconds or non-blocking
-ask_human("Review this architecture", timeout_seconds=300)
+# Thoughtful questions: non-blocking (blocking is capped at 180 s by the MCP client timeout)
+ask_human("Review this architecture", wait=False)
+# Later: feedback = get_telegram_response()
 # OR
 ask_human("Review this architecture", wait=False)
 ```
@@ -385,3 +386,32 @@ ask_human(
 - **Set appropriate timeouts** based on question complexity
 
 Remember: The goal is to create a smooth, non-frustrating experience for the user while getting the information you need to complete tasks effectively.
+
+## Task-workflow usage (approval history + diagram images)
+
+The repo workflow (`docs/workflows/workflow-task.md`) gates each task phase
+through Telegram. Use the context params so the history stays meaningful:
+
+```python
+# Phase A spec approval, with the rendered diagram attached
+answer = ask_human(
+    "Approve the spec for task 0077?",
+    options=["Approve", "Reject"],
+    task_id="0077",
+    phase="A",
+    photo_path="docs/tasks/0077-.../diagrams/01-01_detail-diagram-01.png",
+)
+```
+
+- Render task diagrams first:
+  `bash scripts/render-mermaid.sh docs/tasks/NNNN-slug/01_detail.md docs/tasks/NNNN-slug/diagrams`
+- After the human answers, the original Telegram message is edited to a
+  self-contained "resolved" text (question + task/phase + decision +
+  timestamp) — scrolling history always tells you what was approved.
+- Audit trail: `get_telegram_history(task_id="0077")` lists every approval
+  for the task from the durable JSONL log, even after Telegram's ~24h
+  update window.
+- Send e2e screenshots at the end-task gate:
+  `send_telegram_photo("playwright-tests/latest_screenshots/web/....png", caption="E2E reader")`
+- Keep question text free of unpaired `_`, `*` and backticks (Telegram
+  Markdown), or they will be escaped literally.
